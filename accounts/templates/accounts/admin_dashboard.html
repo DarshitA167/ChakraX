@@ -1,0 +1,82 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mt-4">
+
+    <h1 class="mb-4 text-center fw-bold">Admin Dashboard</h1>
+
+    <!-- Stats Cards -->
+    <div class="row text-center mb-4">
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 rounded-4 p-3">
+                <h5 class="text-muted">Total Users</h5>
+                <h2 class="fw-bold text-primary">{{ total_users }}</h2>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 rounded-4 p-3">
+                <h5 class="text-muted">Active Users</h5>
+                <h2 class="fw-bold text-success">{{ active_users }}</h2>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 rounded-4 p-3">
+                <h5 class="text-muted">Staff Users</h5>
+                <h2 class="fw-bold text-warning">{{ staff_users }}</h2>
+            </div>
+        </div>
+    </div>
+
+    <!-- Users Table -->
+    <div class="card shadow-sm border-0 rounded-4">
+        <div class="card-body">
+            <h4 class="mb-3 fw-bold">Users List</h4>
+            <table class="table table-hover align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Active</th>
+                        <th>Staff</th>
+                        <th>Superuser</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>{{ user.username }}</td>
+                        <td>{{ user.email }}</td>
+                        <td>
+                            <a href="{% url 'toggle_active_status' user.id %}" class="btn btn-sm {% if user.is_active %}btn-success{% else %}btn-secondary{% endif %}">
+                                {% if user.is_active %}Active{% else %}Inactive{% endif %}
+                            </a>
+                        </td>
+                        <td>
+                            <a href="{% url 'toggle_staff_status' user.id %}" class="btn btn-sm {% if user.is_staff %}btn-warning{% else %}btn-secondary{% endif %}">
+                                {% if user.is_staff %}Staff{% else %}Make Staff{% endif %}
+                            </a>
+                        </td>
+                        <td>
+                            <a href="{% url 'toggle_superuser_status' user.id %}" class="btn btn-sm {% if user.is_superuser %}btn-primary{% else %}btn-secondary{% endif %}">
+                                {% if user.is_superuser %}Superuser{% else %}Make Superuser{% endif %}
+                            </a>
+                        </td>
+                        <td>
+                            <a href="{% url 'delete_user' user.id %}" class="btn btn-sm btn-danger"
+                               onclick="return confirm('Are you sure you want to delete {{ user.username }}?');">
+                                Delete
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted">No users found</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,11 @@
+{% extends "layout.html" %}
+{% block title %}User Dashboard - Chakra X{% endblock %}
+{% block content %}
+<div class="flex justify-center items-center min-h-[70vh]">
+    <div class="p-8 bg-white/40 backdrop-blur-md shadow-2xl rounded-2xl w-full max-w-lg border border-gray-200 text-center">
+        <h1 class="text-3xl font-bold text-green-700 mb-4">User Dashboard</h1>
+        <p class="text-gray-700">Welcome, <span class="font-semibold">{{ user.username }}</span>!  
+        Enjoy your <span class="text-green-600">personal dashboard</span>.</p>
+    </div>
+</div>
+{% endblock %}

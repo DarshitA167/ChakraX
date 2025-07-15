@@ -1,0 +1,40 @@
+{% extends "layout.html" %} 
+{% block title %}Log In - Chakra X{% endblock %} 
+{% block content %}
+<div class="flex justify-center items-center min-h-[80vh]">
+  <div
+    class="p-8 bg-white/40 backdrop-blur-md shadow-2xl rounded-2xl w-full max-w-md border border-gray-200"
+  >
+    <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">
+      🔐 Welcome Back to <span class="text-blue-600">Chakra X</span>
+    </h1>
+
+    <form method="POST" class="space-y-4">
+      {% csrf_token %} {% for field in form %}
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1">
+          {{ field.label_tag }}
+        </label>
+        {{ field }} {% if field.errors %}
+        <p class="text-red-500 text-sm">{{ field.errors|striptags }}</p>
+        {% endif %}
+      </div>
+      {% endfor %}
+
+      <button
+        type="submit"
+        class="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition"
+      >
+        Log In
+      </button>
+    </form>
+
+    <p class="text-center text-sm text-gray-600 mt-4">
+      Don’t have an account yet?
+      <a href="{% url 'signup' %}" class="text-blue-600 hover:underline"
+        >Sign Up</a
+      >
+    </p>
+  </div>
+</div>
+{% endblock %}
