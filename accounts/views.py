@@ -1,17 +1,20 @@
-from urllib import response
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, login, logout, get_user_model
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.contrib.auth import get_user_model
-import requests
 from django.contrib import messages
+from django.core.cache import cache
+
+import requests
+import time
+
+from .models import PasswordVault, encrypt_password, decrypt_password
 
 # ✅ Use Custom User Model
 CustomUser = get_user_model()
 
 
-# ---------- LOGIN VIEW ----------
+# ---------- LOGIN ----------
 def login_view(request):
     if request.method == "POST":
         form = AuthenticationForm(request, data=request.POST)
@@ -19,12 +22,10 @@ def login_view(request):
             user = form.get_user()
             login(request, user)
 
-            # ✅ Handle next URL (for @login_required redirects)
             next_url = request.GET.get('next')
             if next_url:
                 return redirect(next_url)
 
-            # ✅ Role-based redirection
             if user.is_superuser or user.is_staff:
                 return redirect('admin_dashboard')
             return redirect('user_dashboard')
@@ -33,13 +34,13 @@ def login_view(request):
     return render(request, 'accounts/login.html', {'form': form})
 
 
-# ---------- LOGOUT VIEW ----------
+# ---------- LOGOUT ----------
 def logout_view(request):
     logout(request)
     return redirect('login')
 
 
-# ---------- SIGNUP VIEW ----------
+# ---------- SIGNUP ----------
 def signup_view(request):
     if request.method == "POST":
         form = UserCreationForm(request.POST)
@@ -57,12 +58,10 @@ def user_dashboard(request):
     return render(request, 'accounts/user_dashboard.html')
 
 
-# ---------- ADMIN DASHBOARD HELPERS ----------
+# ---------- ADMIN DASHBOARD ----------
 def is_superuser(user):
     return user.is_superuser
 
-
-# ---------- ADMIN DASHBOARD ----------
 @login_required
 @user_passes_test(is_superuser)
 def admin_dashboard(request):
@@ -84,9 +83,6 @@ def admin_dashboard(request):
     })
 
 
-
-
-
 # ---------- ADMIN ACTIONS ----------
 @login_required
 @user_passes_test(is_superuser)
@@ -94,6 +90,12 @@ def toggle_staff_status(request, user_id):
     user = get_object_or_404(CustomUser, id=user_id)
     user.is_staff = not user.is_staff
     user.save()
+
+    # ✅ Refresh current session if you are updating yourself
+    if request.user.id == user.id:
+        from django.contrib.auth import update_session_auth_hash
+        update_session_auth_hash(request, user)
+
     return redirect('admin_dashboard')
 
 
@@ -103,7 +105,15 @@ def toggle_superuser_status(request, user_id):
     user = get_object_or_404(CustomUser, id=user_id)
     user.is_superuser = not user.is_superuser
     user.save()
+
+    # ✅ Refresh session for current user
+    if request.user.id == user.id:
+        from django.contrib.auth import update_session_auth_hash
+        update_session_auth_hash(request, user)
+
     return redirect('admin_dashboard')
+
+
 
 
 @login_required
@@ -114,7 +124,6 @@ def toggle_active_status(request, user_id):
     user.save()
     return redirect('admin_dashboard')
 
-
 @login_required
 @user_passes_test(is_superuser)
 def delete_user(request, user_id):
@@ -123,24 +132,16 @@ def delete_user(request, user_id):
     return redirect('admin_dashboard')
 
 
-
-import time
-from django.core.cache import cache
-import requests
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import render
-
-COOLDOWN_SECONDS = 10  # 🔥 Adjust as you like
+# ---------- DATA LEAK SCANNER ----------
+COOLDOWN_SECONDS = 10
 
 @login_required
 def data_leak_scanner(request):
     leak_result = None
-    user_id = request.user.id  # unique per user
+    user_id = request.user.id
     cache_key = f"scanner_cooldown_{user_id}"
 
     if request.method == "POST":
-        # ✅ Check cooldown
         last_scan_time = cache.get(cache_key)
         current_time = time.time()
 
@@ -154,13 +155,8 @@ def data_leak_scanner(request):
 
         try:
             response = requests.get(api_url, headers={"User-Agent": "ChakraX"})
-            print("STATUS CODE:", response.status_code)
-            print("RAW TEXT:", response.text[:500])
-
             if response.status_code == 200:
                 data = response.json()
-                print("API RESPONSE (JSON):", data)
-
                 if data.get("success") and data.get("found"):
                     breaches = data.get("sources", [])
                     leak_result = {
@@ -170,14 +166,40 @@ def data_leak_scanner(request):
                     }
                 else:
                     leak_result = {"found": False}
-                
-                # ✅ Save new scan time
+
                 cache.set(cache_key, current_time, timeout=COOLDOWN_SECONDS)
             else:
                 messages.error(request, f"API Error: {response.status_code}")
 
         except Exception as e:
             messages.error(request, f"Error: {e}")
-            print("ERROR OCCURRED:", e)
 
     return render(request, "accounts/data_leak_scanner.html", {"leak_result": leak_result})
+
+
+# ---------- PASSWORD MANAGER ----------
+@login_required
+def password_manager(request):
+    if request.method == "POST":
+        site_name = request.POST.get("site_name")
+        site_url = request.POST.get("site_url")
+        username_or_email = request.POST.get("username_or_email")
+        raw_password = request.POST.get("password")
+
+        encrypted_pwd = encrypt_password(raw_password)
+
+        PasswordVault.objects.create(
+            user=request.user,
+            site_name=site_name,
+            site_url=site_url,
+            username_or_email=username_or_email,
+            encrypted_password=encrypted_pwd
+        )
+        messages.success(request, f"✅ Password for {site_name} saved securely!")
+        return redirect("password_manager")
+
+    saved_passwords = PasswordVault.objects.filter(user=request.user)
+    for pwd in saved_passwords:
+        pwd.decrypted_password = decrypt_password(pwd.encrypted_password)
+
+    return render(request, "accounts/password_manager.html", {"passwords": saved_passwords})

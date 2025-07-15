@@ -18,4 +18,6 @@ urlpatterns = [
 
     # ... other paths
     path('data-leak-scanner/', data_leak_scanner, name='data_leak_scanner'),
+    path('password_manager/', views.password_manager, name='password_manager'),
+
 ]

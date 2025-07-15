@@ -136,3 +136,11 @@ CACHES = {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
     }
 }
+
+from cryptography.fernet import Fernet
+
+
+FERNET_KEY = b'plTNMfjp77jvsBfO85ZjZm2VFSU5SjXYq4eV7qUyYRI='  # <== Replace with YOUR generated key
+fernet = Fernet(FERNET_KEY)
+
+AUTH_USER_MODEL = 'accounts.CustomUser'
