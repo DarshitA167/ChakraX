@@ -65,15 +65,21 @@ def is_superuser(user):
 def admin_dashboard(request):
     total_users = CustomUser.objects.count()
     active_users = CustomUser.objects.filter(is_active=True).count()
+    inactive_users = total_users - active_users
     staff_users = CustomUser.objects.filter(is_staff=True).count()
+    normal_users = total_users - staff_users
 
     users = CustomUser.objects.all()
+
     return render(request, 'accounts/admin_dashboard.html', {
         'users': users,
         'total_users': total_users,
         'active_users': active_users,
         'staff_users': staff_users,
+        'inactive_users': inactive_users,
+        'normal_users': normal_users,
     })
+
 
 
 

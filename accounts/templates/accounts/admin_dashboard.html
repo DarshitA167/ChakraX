@@ -26,6 +26,22 @@
         </div>
     </div>
 
+    <!-- Charts Row -->
+    <div class="row my-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0 rounded-4 p-3">
+                <h5 class="text-center">Active vs Inactive Users</h5>
+                <canvas id="activeChart"></canvas>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0 rounded-4 p-3">
+                <h5 class="text-center">Staff vs Normal Users</h5>
+                <canvas id="staffChart"></canvas>
+            </div>
+        </div>
+    </div>
+
     <!-- Users Table -->
     <div class="card shadow-sm border-0 rounded-4">
         <div class="card-body">
@@ -47,22 +63,26 @@
                         <td>{{ user.username }}</td>
                         <td>{{ user.email }}</td>
                         <td>
-                            <a href="{% url 'toggle_active_status' user.id %}" class="btn btn-sm {% if user.is_active %}btn-success{% else %}btn-secondary{% endif %}">
+                            <a href="{% url 'toggle_active_status' user.id %}" 
+                               class="btn btn-sm {% if user.is_active %}btn-success{% else %}btn-secondary{% endif %}">
                                 {% if user.is_active %}Active{% else %}Inactive{% endif %}
                             </a>
                         </td>
                         <td>
-                            <a href="{% url 'toggle_staff_status' user.id %}" class="btn btn-sm {% if user.is_staff %}btn-warning{% else %}btn-secondary{% endif %}">
+                            <a href="{% url 'toggle_staff_status' user.id %}" 
+                               class="btn btn-sm {% if user.is_staff %}btn-warning{% else %}btn-secondary{% endif %}">
                                 {% if user.is_staff %}Staff{% else %}Make Staff{% endif %}
                             </a>
                         </td>
                         <td>
-                            <a href="{% url 'toggle_superuser_status' user.id %}" class="btn btn-sm {% if user.is_superuser %}btn-primary{% else %}btn-secondary{% endif %}">
+                            <a href="{% url 'toggle_superuser_status' user.id %}" 
+                               class="btn btn-sm {% if user.is_superuser %}btn-primary{% else %}btn-secondary{% endif %}">
                                 {% if user.is_superuser %}Superuser{% else %}Make Superuser{% endif %}
                             </a>
                         </td>
                         <td>
-                            <a href="{% url 'delete_user' user.id %}" class="btn btn-sm btn-danger"
+                            <a href="{% url 'delete_user' user.id %}" 
+                               class="btn btn-sm btn-danger"
                                onclick="return confirm('Are you sure you want to delete {{ user.username }}?');">
                                 Delete
                             </a>
@@ -79,4 +99,42 @@
     </div>
 
 </div>
+
+<!-- Charts Script -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Active vs Inactive Pie Chart
+    const activeCtx = document.getElementById('activeChart').getContext('2d');
+    new Chart(activeCtx, {
+        type: 'pie',
+        data: {
+            labels: ['Active', 'Inactive'],
+            datasets: [{
+                data: [{{ active_users }}, {{ inactive_users }}],
+                backgroundColor: ['#28a745', '#6c757d'],
+                borderWidth: 1
+            }]
+        }
+    });
+
+    // Staff vs Normal Users Bar Chart
+    const staffCtx = document.getElementById('staffChart').getContext('2d');
+    new Chart(staffCtx, {
+        type: 'bar',
+        data: {
+            labels: ['Staff', 'Normal Users'],
+            datasets: [{
+                label: 'Users',
+                data: [{{ staff_users }}, {{ normal_users }}],
+                backgroundColor: ['#ffc107', '#007bff'],
+                borderRadius: 5
+            }]
+        },
+        options: {
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+</script>
 {% endblock %}
