@@ -1,0 +1,44 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h2 class="fw-bold text-center mb-3">🔐 Data Leak Scanner</h2>
+
+    <!-- ✅ Show Cooldown / API Messages -->
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert-warning text-center">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+
+    <!-- ✅ Email Scan Form -->
+    <form method="POST" class="text-center">
+        {% csrf_token %}
+        <input type="email" name="email" class="form-control w-50 d-inline" placeholder="Enter email" required>
+        <button class="btn btn-primary ms-2" type="submit">Check</button>
+    </form>
+
+    <!-- ✅ Demo Button -->
+    <div class="text-center mt-2">
+        <button class="btn btn-secondary btn-sm" type="button"
+                onclick="document.querySelector('input[name=email]').value='test@example.com'">
+            Use Sample Breached Email
+        </button>
+    </div>
+
+    <!-- ✅ Display Results -->
+    {% if leak_result %}
+        <div class="mt-4 text-center">
+            {% if leak_result.found %}
+                <div class="alert alert-danger">
+                    <h4>❌ Breaches Found: {{ leak_result.count }}</h4>
+                    <p><b>Breached Sites:</b> {{ leak_result.breaches|join:", " }}</p>
+                </div>
+            {% else %}
+                <div class="alert alert-success">
+                    ✅ No breaches found. You’re safe!
+                </div>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

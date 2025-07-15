@@ -1,5 +1,7 @@
 from django.urls import path
 from . import views
+from .views import data_leak_scanner
+
 
 urlpatterns = [
     path('login/', views.login_view, name='login'),
@@ -13,4 +15,7 @@ urlpatterns = [
     path('toggle-superuser/<int:user_id>/', views.toggle_superuser_status, name='toggle_superuser_status'),
     path('toggle-active/<int:user_id>/', views.toggle_active_status, name='toggle_active_status'),
     path('delete-user/<int:user_id>/', views.delete_user, name='delete_user'),
+
+    # ... other paths
+    path('data-leak-scanner/', data_leak_scanner, name='data_leak_scanner'),
 ]

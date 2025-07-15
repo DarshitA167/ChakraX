@@ -1,8 +1,11 @@
+from urllib import response
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth import get_user_model
+import requests
+from django.contrib import messages
 
 # ✅ Use Custom User Model
 CustomUser = get_user_model()
@@ -118,3 +121,63 @@ def delete_user(request, user_id):
     user = get_object_or_404(CustomUser, id=user_id)
     user.delete()
     return redirect('admin_dashboard')
+
+
+
+import time
+from django.core.cache import cache
+import requests
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render
+
+COOLDOWN_SECONDS = 10  # 🔥 Adjust as you like
+
+@login_required
+def data_leak_scanner(request):
+    leak_result = None
+    user_id = request.user.id  # unique per user
+    cache_key = f"scanner_cooldown_{user_id}"
+
+    if request.method == "POST":
+        # ✅ Check cooldown
+        last_scan_time = cache.get(cache_key)
+        current_time = time.time()
+
+        if last_scan_time and current_time - last_scan_time < COOLDOWN_SECONDS:
+            remaining = int(COOLDOWN_SECONDS - (current_time - last_scan_time))
+            messages.warning(request, f"⏳ Too many requests! Try again in {remaining} seconds.")
+            return render(request, "accounts/data_leak_scanner.html", {"leak_result": leak_result})
+
+        email = request.POST.get("email")
+        api_url = f"https://leakcheck.io/api/public?check={email}"
+
+        try:
+            response = requests.get(api_url, headers={"User-Agent": "ChakraX"})
+            print("STATUS CODE:", response.status_code)
+            print("RAW TEXT:", response.text[:500])
+
+            if response.status_code == 200:
+                data = response.json()
+                print("API RESPONSE (JSON):", data)
+
+                if data.get("success") and data.get("found"):
+                    breaches = data.get("sources", [])
+                    leak_result = {
+                        "found": True,
+                        "count": len(breaches),
+                        "breaches": breaches
+                    }
+                else:
+                    leak_result = {"found": False}
+                
+                # ✅ Save new scan time
+                cache.set(cache_key, current_time, timeout=COOLDOWN_SECONDS)
+            else:
+                messages.error(request, f"API Error: {response.status_code}")
+
+        except Exception as e:
+            messages.error(request, f"Error: {e}")
+            print("ERROR OCCURRED:", e)
+
+    return render(request, "accounts/data_leak_scanner.html", {"leak_result": leak_result})
