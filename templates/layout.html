@@ -1,221 +1,365 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Chakra X{% endblock %}</title>
 
     <!-- ✅ Tailwind & Bootstrap -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-    />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-    <!-- ✅ Charts -->
+    <!-- ✅ Charts & TensorFlow -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <!-- ✅ TensorFlow & Teachable Machine (Correct Order, Only Once) -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.9.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
 
     <style>
-      /* Floating webcam styling */
-      #webcam-container {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        width: 180px;
-        height: 135px;
-        border: 3px solid #00ff7f; /* Green = Normal */
-        border-radius: 12px;
-        overflow: hidden;
-        background: rgba(0, 0, 0, 0.3);
-        backdrop-filter: blur(5px);
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-        z-index: 9999;
-        cursor: grab;
-      }
+        /* ✅ Chatbot Styling */
+        #chatbot-container {
+            position: fixed;
+            bottom: 20px;
+            right: -360px;
+            width: 320px;
+            height: 450px;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            transition: all 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+            z-index: 10000;
+            font-family: 'Inter', sans-serif;
+            opacity: 0;
+            transform: scale(0.8);
+        }
 
-      #webcam-container.dragging {
-        opacity: 0.8;
-        cursor: grabbing;
-      }
+        #chatbot-container.active {
+            right: 20px;
+            opacity: 1;
+            transform: scale(1);
+        }
 
-      #minimize-btn {
-        position: absolute;
-        top: 5px;
-        right: 5px;
-        background: rgba(255, 255, 255, 0.7);
-        border: none;
-        border-radius: 4px;
-        font-size: 12px;
-        cursor: pointer;
-        z-index: 10000;
-      }
+        #chatbot-header {
+            background: linear-gradient(45deg, #03a9f4, #0288d1);
+            color: white;
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
+        }
 
-      #label-container {
-        display: none;
-      }
+        #chatbot-header h3 {
+            font-size: 16px;
+            margin: 0;
+        }
 
-      #webcam-container:hover {
-        transform: scale(1.05);
-        border-color: #03a9f4;
-      }
+        #close-chatbot {
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        #chatbot-messages {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+            background: #f4f6f9;
+        }
+
+        .message {
+            margin: 8px 0;
+            padding: 8px 12px;
+            border-radius: 8px;
+            max-width: 85%;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .user {
+            background: #e3f2fd;
+            align-self: flex-end;
+        }
+
+        .bot {
+            background: #e0f7fa;
+            align-self: flex-start;
+        }
+
+        .typing {
+            font-style: italic;
+            opacity: 0.7;
+        }
+
+        #chatbot-input {
+            display: flex;
+            border-top: 1px solid #ddd;
+        }
+
+        #chatbot-input input {
+            flex: 1;
+            border: none;
+            padding: 10px;
+            font-size: 14px;
+            outline: none;
+        }
+
+        #send-btn {
+            background: #03a9f4;
+            color: white;
+            border: none;
+            padding: 10px 12px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        #send-btn:hover {
+            background: #0288d1;
+        }
+
+        /* ✅ Webcam */
+        #webcam-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 180px;
+            height: 135px;
+            border: 3px solid #00ff7f; /* Green = Normal */
+            border-radius: 12px;
+            overflow: hidden;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(5px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            z-index: 9999;
+            cursor: grab;
+        }
+
+        #webcam-container.dragging {
+            opacity: 0.8;
+            cursor: grabbing;
+        }
+
+        #minimize-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(255, 255, 255, 0.7);
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            z-index: 10000;
+        }
+
+        #label-container {
+            display: none;
+        }
+
+        #webcam-container:hover {
+            transform: scale(1.05);
+            border-color: #03a9f4;
+        }
     </style>
+</head>
+<body class="min-h-screen bg-[#E9ECF0] bg-gradient-to-tr from-[#e6e6e6] to-[#f4f4f4] text-gray-800">
 
-    <script>
-    const URL = "/static/model/";
-    let model, webcam, labelContainer, maxPredictions;
-    let confusedCounter = 0, chatbotCooldown = false;
-    let webcamContainer = null;
-
-    async function initConfusionDetector() {
-        const modelURL = URL + "model.json";
-        const metadataURL = URL + "metadata.json";
-
-        model = await tmImage.load(modelURL, metadataURL);
-        maxPredictions = model.getTotalClasses();
-
-        const flip = true;
-        webcam = new tmImage.Webcam(180, 135, flip);
-        await webcam.setup();
-        await webcam.play();
-        window.requestAnimationFrame(loop);
-
-        webcamContainer = document.getElementById("webcam-container");
-        webcamContainer.appendChild(webcam.canvas);
-
-        makeDraggable(webcamContainer);
-        document.getElementById("minimize-btn").addEventListener("click", toggleMinimize);
-
-        labelContainer = document.getElementById("label-container");
-    }
-
-    async function loop() {
-        webcam.update();
-        await predict();
-        window.requestAnimationFrame(loop);
-    }
-
-    async function predict() {
-        const prediction = await model.predict(webcam.canvas);
-        let confusedProb = 0;
-
-        prediction.forEach(pred => {
-            if (pred.className === "Confused") confusedProb = pred.probability;
-        });
-
-        console.log("Confused Prob:", confusedProb.toFixed(2), "Counter:", confusedCounter);
-
-        if (!chatbotCooldown) {
-            if (confusedProb > 0.98) {
-                confusedCounter++;
-                webcamContainer.style.borderColor = "#ff4c4c"; // Red = Confused
-                if (confusedCounter > 65) {
-                    triggerChatbot();
-                    confusedCounter = 0;
-                    chatbotCooldown = true;
-                    setTimeout(() => chatbotCooldown = false, 20000);
-                }
-            } else {
-                webcamContainer.style.borderColor = "#00ff7f"; // Green = Normal
-                if (confusedProb < 0.6) confusedCounter = 0;
-            }
-        }
-    }
-
-    function triggerChatbot() {
-        console.log("🤖 Confusion Detected! Triggering Chatbot...");
-        speak("We noticed you might need help, opening support…");
-        // TODO: Auto-open chatbot function here
-    }
-
-    function speak(text) {
-        const utterance = new SpeechSynthesisUtterance(text);
-        speechSynthesis.speak(utterance);
-    }
-
-    // ✅ Draggable Webcam
-    function makeDraggable(el) {
-        let isDragging = false, offsetX, offsetY;
-
-        el.addEventListener("mousedown", (e) => {
-            isDragging = true;
-            offsetX = e.clientX - el.getBoundingClientRect().left;
-            offsetY = e.clientY - el.getBoundingClientRect().top;
-            el.classList.add("dragging");
-        });
-
-        document.addEventListener("mousemove", (e) => {
-            if (!isDragging) return;
-            el.style.left = (e.clientX - offsetX) + "px";
-            el.style.top = (e.clientY - offsetY) + "px";
-            el.style.right = "auto"; el.style.bottom = "auto";
-        });
-
-        document.addEventListener("mouseup", () => {
-            isDragging = false;
-            el.classList.remove("dragging");
-        });
-    }
-
-    // ✅ Minimize Button
-    function toggleMinimize() {
-        if (webcam.canvas.style.display === "none") {
-            webcam.canvas.style.display = "block";
-            this.textContent = "–";
-        } else {
-            webcam.canvas.style.display = "none";
-            this.textContent = "+";
-        }
-    }
-
-    document.addEventListener("DOMContentLoaded", initConfusionDetector);
-</script>
-
-  </head>
-
-  <body
-    class="min-h-screen bg-[#E9ECF0] bg-gradient-to-tr from-[#e6e6e6] to-[#f4f4f4] text-gray-800"
-  >
-    <!-- Navbar -->
-    <nav
-      class="bg-white/40 backdrop-blur-md border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-md"
-    >
-      <h1 class="text-xl font-bold text-blue-600">🔐 Chakra X</h1>
-      <div class="space-x-4">
-        {% if user.is_authenticated %}
-        <span class="text-sm">Welcome, {{ user.username }}</span>
-        <a
-          href="{% url 'logout' %}"
-          class="text-blue-600 hover:underline text-sm"
-          >Logout</a
-        >
-        {% else %}
-        <a
-          href="{% url 'login' %}"
-          class="text-blue-600 hover:underline text-sm"
-          >Login</a
-        >
-        <a
-          href="{% url 'signup' %}"
-          class="text-blue-600 hover:underline text-sm"
-          >Sign Up</a
-        >
-        {% endif %}
-      </div>
+    <!-- ✅ Navbar -->
+    <nav class="bg-white/40 backdrop-blur-md border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-md">
+        <h1 class="text-xl font-bold text-blue-600">🔐 Chakra X</h1>
+        <div class="space-x-4">
+            {% if user.is_authenticated %}
+                <span class="text-sm">Welcome, {{ user.username }}</span>
+                <a href="{% url 'logout' %}" class="text-blue-600 hover:underline text-sm">Logout</a>
+            {% else %}
+                <a href="{% url 'login' %}" class="text-blue-600 hover:underline text-sm">Login</a>
+                <a href="{% url 'signup' %}" class="text-blue-600 hover:underline text-sm">Sign Up</a>
+            {% endif %}
+        </div>
     </nav>
 
-    <!-- Webcam -->
-    <div id="webcam-container">
-    <button id="minimize-btn">–</button>
-</div>
-<div id="label-container"></div>
+    <!-- ✅ Chatbot -->
+    <div id="chatbot-container">
+        <div id="chatbot-header">
+            <h3>🤖 Chakra X Genius</h3>
+            <button id="close-chatbot">×</button>
+        </div>
+        <div id="chatbot-messages"></div>
+        <div id="chatbot-input">
+            <input type="text" id="user-input" placeholder="Ask me about Chakra X...">
+            <button id="send-btn">➤</button>
+        </div>
+    </div>
 
+    <!-- ✅ Webcam -->
+    <div id="webcam-container"><button id="minimize-btn">–</button></div>
+    <div id="label-container"></div>
 
-    <!-- Main Content -->
+    <!-- ✅ Main Content -->
     <main class="p-6">{% block content %}{% endblock %}</main>
-  </body>
+
+<script>
+const URL = "/static/model/";
+let model, webcam, labelContainer, maxPredictions;
+let confusedCounter = 0, chatbotCooldown = false;
+let webcamContainer = null;
+
+async function initConfusionDetector() {
+    const modelURL = URL + "model.json";
+    const metadataURL = URL + "metadata.json";
+
+    model = await tmImage.load(modelURL, metadataURL);
+    maxPredictions = model.getTotalClasses();
+
+    const flip = true;
+    webcam = new tmImage.Webcam(180, 135, flip);
+    await webcam.setup();
+    await webcam.play();
+    window.requestAnimationFrame(loop);
+
+    webcamContainer = document.getElementById("webcam-container");
+    webcamContainer.appendChild(webcam.canvas);
+
+    makeDraggable(webcamContainer);
+    document.getElementById("minimize-btn").addEventListener("click", toggleMinimize);
+
+    labelContainer = document.getElementById("label-container");
+}
+
+async function loop() {
+    webcam.update();
+    await predict();
+    window.requestAnimationFrame(loop);
+}
+
+async function predict() {
+    if (document.getElementById("chatbot-container").classList.contains("active")) {
+        webcamContainer.style.borderColor = "#00ff7f"; // Green while chatbot open
+        return;
+    }
+
+    const prediction = await model.predict(webcam.canvas);
+    let confusedProb = 0;
+    prediction.forEach(pred => {
+        if (pred.className === "Confused") confusedProb = pred.probability;
+    });
+
+    if (!chatbotCooldown) {
+        if (confusedProb > 0.98) {
+            confusedCounter++;
+            webcamContainer.style.borderColor = "#ff4c4c";
+            if (confusedCounter > 65) {
+                triggerChatbot();
+                confusedCounter = 0;
+                chatbotCooldown = true;
+                setTimeout(() => chatbotCooldown = false, 20000);
+            }
+        } else {
+            webcamContainer.style.borderColor = "#00ff7f";
+            if (confusedProb < 0.6) confusedCounter = 0;
+        }
+    }
+}
+
+function triggerChatbot() {
+    console.log("🤖 Confusion Detected! Opening Genius Chatbot...");
+    speak("We noticed you might need help, opening support Chakra…");
+    setTimeout(() => {
+        chatbotContainer.classList.add("active");
+        {% if user.is_authenticated %}
+            addMessage("Hi {{ user.username }}! How can I assist you?", "bot");
+        {% else %}
+            addMessage("Hi! How can I assist you? Ask me anything about Chakra X.", "bot");
+        {% endif %}
+    }, 1500); // delay for voice to finish
+}
+
+function speak(text) {
+    const utterance = new SpeechSynthesisUtterance(text);
+    speechSynthesis.speak(utterance);
+}
+
+// ✅ Typing Animation
+function addMessage(text, sender) {
+    const msg = document.createElement("div");
+    msg.classList.add("message", sender);
+    chatbotMessages.appendChild(msg);
+    chatbotMessages.scrollTop = chatbotMessages.scrollHeight;
+
+    if (sender === "bot") {
+        let i = 0;
+        msg.textContent = "";
+        const typing = setInterval(() => {
+            msg.textContent += text.charAt(i);
+            i++;
+            if (i >= text.length) clearInterval(typing);
+        }, 40);
+    } else {
+        msg.textContent = text;
+    }
+}
+
+// ✅ Draggable Webcam
+function makeDraggable(el) {
+    let isDragging = false, offsetX, offsetY;
+    el.addEventListener("mousedown", (e) => {
+        isDragging = true;
+        offsetX = e.clientX - el.getBoundingClientRect().left;
+        offsetY = e.clientY - el.getBoundingClientRect().top;
+        el.classList.add("dragging");
+    });
+    document.addEventListener("mousemove", (e) => {
+        if (!isDragging) return;
+        el.style.left = (e.clientX - offsetX) + "px";
+        el.style.top = (e.clientY - offsetY) + "px";
+        el.style.right = "auto"; el.style.bottom = "auto";
+    });
+    document.addEventListener("mouseup", () => {
+        isDragging = false;
+        el.classList.remove("dragging");
+    });
+}
+
+// ✅ Minimize Button
+function toggleMinimize() {
+    if (webcam.canvas.style.display === "none") {
+        webcam.canvas.style.display = "block";
+        this.textContent = "–";
+    } else {
+        webcam.canvas.style.display = "none";
+        this.textContent = "+";
+    }
+}
+
+// ✅ Chatbot Logic
+const chatbotContainer = document.getElementById("chatbot-container");
+const chatbotMessages = document.getElementById("chatbot-messages");
+const userInput = document.getElementById("user-input");
+const sendBtn = document.getElementById("send-btn");
+const closeBtn = document.getElementById("close-chatbot");
+
+function handleUserMessage() {
+    const question = userInput.value.trim();
+    if (!question) return;
+
+    addMessage(question, "user");
+    userInput.value = "";
+    setTimeout(() => {
+        addMessage("I'm still learning! But soon I'll guide you about all Chakra X features.", "bot");
+    }, 500);
+}
+
+sendBtn.addEventListener("click", handleUserMessage);
+userInput.addEventListener("keypress", e => { if (e.key === "Enter") handleUserMessage(); });
+closeBtn.addEventListener("click", () => {
+    chatbotContainer.classList.remove("active");
+});
+
+document.addEventListener("DOMContentLoaded", initConfusionDetector);
+</script>
+</body>
 </html>
