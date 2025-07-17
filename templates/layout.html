@@ -28,111 +28,153 @@
         right: 20px;
         width: 180px;
         height: 135px;
-        border: 2px solid #00bcd4;
+        border: 3px solid #00ff7f; /* Green = Normal */
         border-radius: 12px;
         overflow: hidden;
         background: rgba(0, 0, 0, 0.3);
         backdrop-filter: blur(5px);
         box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
         z-index: 9999;
-        transition: all 0.3s ease-in-out;
+        cursor: grab;
+      }
+
+      #webcam-container.dragging {
+        opacity: 0.8;
+        cursor: grabbing;
+      }
+
+      #minimize-btn {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        background: rgba(255, 255, 255, 0.7);
+        border: none;
+        border-radius: 4px;
+        font-size: 12px;
+        cursor: pointer;
+        z-index: 10000;
+      }
+
+      #label-container {
+        display: none;
       }
 
       #webcam-container:hover {
         transform: scale(1.05);
         border-color: #03a9f4;
       }
-
-      #label-container {
-        display: none;
-      }
     </style>
 
     <script>
-      const URL = "/static/model/";
-      let model, webcam, labelContainer, maxPredictions;
-      let confusedCounter = 0;
-      let chatbotCooldown = false;
+    const URL = "/static/model/";
+    let model, webcam, labelContainer, maxPredictions;
+    let confusedCounter = 0, chatbotCooldown = false;
+    let webcamContainer = null;
 
-      async function initConfusionDetector() {
-        try {
-          const modelURL = URL + "model.json";
-          const metadataURL = URL + "metadata.json";
+    async function initConfusionDetector() {
+        const modelURL = URL + "model.json";
+        const metadataURL = URL + "metadata.json";
 
-          model = await tmImage.load(modelURL, metadataURL);
-          maxPredictions = model.getTotalClasses();
+        model = await tmImage.load(modelURL, metadataURL);
+        maxPredictions = model.getTotalClasses();
 
-          const flip = true;
-          webcam = new tmImage.Webcam(180, 135, flip);
-          await webcam.setup();
-          await webcam.play();
-          window.requestAnimationFrame(loop);
+        const flip = true;
+        webcam = new tmImage.Webcam(180, 135, flip);
+        await webcam.setup();
+        await webcam.play();
+        window.requestAnimationFrame(loop);
 
-          document
-            .getElementById("webcam-container")
-            .appendChild(webcam.canvas);
-          labelContainer = document.getElementById("label-container");
+        webcamContainer = document.getElementById("webcam-container");
+        webcamContainer.appendChild(webcam.canvas);
 
-          console.log("✅ Confusion Detector Initialized");
-        } catch (err) {
-          console.error("❌ Error initializing confusion detector:", err);
-        }
-      }
+        makeDraggable(webcamContainer);
+        document.getElementById("minimize-btn").addEventListener("click", toggleMinimize);
 
-      async function loop() {
+        labelContainer = document.getElementById("label-container");
+    }
+
+    async function loop() {
         webcam.update();
         await predict();
         window.requestAnimationFrame(loop);
-      }
+    }
 
-      async function predict() {
+    async function predict() {
         const prediction = await model.predict(webcam.canvas);
         let confusedProb = 0;
 
-        prediction.forEach((pred) => {
-          if (pred.className === "Confused") {
-            confusedProb = pred.probability;
-          }
+        prediction.forEach(pred => {
+            if (pred.className === "Confused") confusedProb = pred.probability;
         });
 
-        console.log(
-          "Confused Prob:",
-          confusedProb.toFixed(2),
-          "Counter:",
-          confusedCounter
-        );
+        console.log("Confused Prob:", confusedProb.toFixed(2), "Counter:", confusedCounter);
 
         if (!chatbotCooldown) {
-          if (confusedProb > 0.94) {
-            // Slightly easier to trigger
-            confusedCounter++;
-            if (confusedCounter > 50) {
-              // ~1.2 sec continuous confusion
-              triggerChatbot();
-              confusedCounter = 0;
-              chatbotCooldown = true;
-              setTimeout(() => (chatbotCooldown = false), 20000);
+            if (confusedProb > 0.98) {
+                confusedCounter++;
+                webcamContainer.style.borderColor = "#ff4c4c"; // Red = Confused
+                if (confusedCounter > 65) {
+                    triggerChatbot();
+                    confusedCounter = 0;
+                    chatbotCooldown = true;
+                    setTimeout(() => chatbotCooldown = false, 20000);
+                }
+            } else {
+                webcamContainer.style.borderColor = "#00ff7f"; // Green = Normal
+                if (confusedProb < 0.6) confusedCounter = 0;
             }
-          } else if (confusedProb < 0.6) {
-            // Reset faster when normal
-            confusedCounter = 0;
-          }
         }
-      }
+    }
 
-      function triggerChatbot() {
+    function triggerChatbot() {
         console.log("🤖 Confusion Detected! Triggering Chatbot...");
         speak("We noticed you might need help, opening support…");
-        // ✅ Later → auto-open chatbot here
-      }
+        // TODO: Auto-open chatbot function here
+    }
 
-      function speak(text) {
+    function speak(text) {
         const utterance = new SpeechSynthesisUtterance(text);
         speechSynthesis.speak(utterance);
-      }
+    }
 
-      document.addEventListener("DOMContentLoaded", initConfusionDetector);
-    </script>
+    // ✅ Draggable Webcam
+    function makeDraggable(el) {
+        let isDragging = false, offsetX, offsetY;
+
+        el.addEventListener("mousedown", (e) => {
+            isDragging = true;
+            offsetX = e.clientX - el.getBoundingClientRect().left;
+            offsetY = e.clientY - el.getBoundingClientRect().top;
+            el.classList.add("dragging");
+        });
+
+        document.addEventListener("mousemove", (e) => {
+            if (!isDragging) return;
+            el.style.left = (e.clientX - offsetX) + "px";
+            el.style.top = (e.clientY - offsetY) + "px";
+            el.style.right = "auto"; el.style.bottom = "auto";
+        });
+
+        document.addEventListener("mouseup", () => {
+            isDragging = false;
+            el.classList.remove("dragging");
+        });
+    }
+
+    // ✅ Minimize Button
+    function toggleMinimize() {
+        if (webcam.canvas.style.display === "none") {
+            webcam.canvas.style.display = "block";
+            this.textContent = "–";
+        } else {
+            webcam.canvas.style.display = "none";
+            this.textContent = "+";
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", initConfusionDetector);
+</script>
+
   </head>
 
   <body
@@ -167,8 +209,11 @@
     </nav>
 
     <!-- Webcam -->
-    <div id="webcam-container"></div>
-    <div id="label-container"></div>
+    <div id="webcam-container">
+    <button id="minimize-btn">–</button>
+</div>
+<div id="label-container"></div>
+
 
     <!-- Main Content -->
     <main class="p-6">{% block content %}{% endblock %}</main>
